@@ -331,6 +331,53 @@ static struct cmd_results *focus_output(struct sway_seat *seat,
 	return cmd_results_new(CMD_SUCCESS, NULL);
 }
 
+static list_t *get_children_of_tabbed_parent(struct sway_container *container) {
+	while(container != NULL) {
+		sway_log(SWAY_ERROR, "%s %d\n", container->title, container->layout);
+		if(container->layout == L_TABBED || container->layout == L_STACKED) {
+			return container->children;
+		} else if(container->parent == NULL
+				   && (container->workspace->layout == L_TABBED
+							  || container->workspace->layout == L_STACKED)) {
+			return container->workspace->tiling;
+		}
+
+		container = container->parent;
+	}
+	return NULL;
+}
+
+static struct cmd_results *focus_tab(struct sway_seat *seat,
+		struct sway_container *container,
+		int argc, char **argv) {
+	if (argc != 1) {
+		return cmd_results_new(CMD_INVALID,
+				"Expected 'focus tab <index>'");
+	}
+	char* endptr = NULL;
+	long index = strtol(argv[0], &endptr, 10);
+	if(endptr == NULL || endptr == argv[0]) {
+		return cmd_results_new(CMD_INVALID,
+				"Expected 'focus tab <index>'");
+	}
+	list_t *children = get_children_of_tabbed_parent(container);
+	if(!children) {
+		sway_log(SWAY_ERROR, "failed %s\n", container->title);
+		return cmd_results_new(CMD_FAILURE,
+				"No tabbed or stacked container to focus from");
+	}
+
+	if(index >= children->length) {
+		return cmd_results_new(CMD_FAILURE,
+				"Not enough children in tabbed or stacked container");
+	}
+
+	seat_set_focus(seat, &((struct sway_container* )children->items[index])->node);
+	seat_consider_warp_to_focus(seat);
+
+	return cmd_results_new(CMD_SUCCESS, NULL);
+}
+
 static struct cmd_results *focus_parent(void) {
 	struct sway_seat *seat = config->handler_context.seat;
 	struct sway_container *con = config->handler_context.container;
@@ -409,6 +456,11 @@ struct cmd_results *cmd_focus(int argc, char **argv) {
 	}
 	if (strcasecmp(argv[0], "child") == 0) {
 		return focus_child();
+	}
+
+	if (strcasecmp(argv[0], "tab") == 0) {
+		argc--; argv++;
+		return focus_tab(seat, container, argc, argv);
 	}
 
 	enum wlr_direction direction = 0;
