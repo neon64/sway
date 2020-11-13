@@ -333,7 +333,6 @@ static struct cmd_results *focus_output(struct sway_seat *seat,
 
 static list_t *get_children_of_tabbed_parent(struct sway_container *container) {
 	while(container != NULL) {
-		sway_log(SWAY_ERROR, "%s %d\n", container->title, container->layout);
 		if(container->layout == L_TABBED || container->layout == L_STACKED) {
 			return container->children;
 		} else if(container->parent == NULL
@@ -362,7 +361,6 @@ static struct cmd_results *focus_tab(struct sway_seat *seat,
 	}
 	list_t *children = get_children_of_tabbed_parent(container);
 	if(!children) {
-		sway_log(SWAY_ERROR, "failed %s\n", container->title);
 		return cmd_results_new(CMD_FAILURE,
 				"No tabbed or stacked container to focus from");
 	}
